@@ -270,36 +270,6 @@ class Operator(BaseOperator):
         return tuple(reversed(self.output_dims())) + tuple(
             reversed(self.input_dims()))
 
-    def _evolve(self, state, qargs=None):
-        """Evolve a quantum state by the operator.
-
-        Args:
-            state (QuantumState): The input statevector or density matrix.
-            qargs (list): a list of QuantumState subsystem positions to apply
-                           the operator on.
-
-        Returns:
-            QuantumState: the output quantum state.
-
-        Raises:
-            QiskitError: if the operator dimension does not match the
-            specified QuantumState subsystem dimensions.
-        """
-        state = self._format_state(state)
-        if qargs is None:
-            if state.shape[0] != self._input_dim:
-                raise QiskitError(
-                    "Operator input dimension is not equal to state dimension."
-                )
-            if state.ndim == 1:
-                # Return evolved statevector
-                return np.dot(self.data, state)
-            # Return evolved density matrix
-            return np.dot(
-                np.dot(self.data, state), np.transpose(np.conj(self.data)))
-        # Subsystem evolution
-        return self._evolve_subsystem(state, qargs)
-
     def _tensor_product(self, other, reverse=False):
         """Return the tensor product operator.
 
@@ -355,49 +325,6 @@ class Operator(BaseOperator):
             self._einsum_matmul(tensor, mat, indices, shift, right_mul),
             final_shape)
         return Operator(data, input_dims, output_dims)
-
-    def _evolve_subsystem(self, state, qargs):
-        """Evolve a quantum state by the operator.
-
-        Args:
-            state (QuantumState): The input statevector or density matrix.
-            qargs (list): a list of QuantumState subsystem positions to apply
-                           the operator on.
-
-        Returns:
-            QuantumState: the output quantum state.
-
-        Raises:
-            QiskitError: if the operator dimension does not match the
-            specified QuantumState subsystem dimensions.
-        """
-        mat = np.reshape(self.data, self._shape)
-        # Hack to assume state is a N-qubit state until a proper class for states
-        # is in place
-        state_size = len(state)
-        state_dims = self._automatic_dims(None, state_size)
-        if self.input_dims() != len(qargs) * (2,):
-            raise QiskitError(
-                "Operator input dimensions are not compatible with state subsystem dimensions."
-            )
-        if state.ndim == 1:
-            # Return evolved statevector
-            tensor = np.reshape(state, state_dims)
-            indices = [len(state_dims) - 1 - qubit for qubit in qargs]
-            tensor = self._einsum_matmul(tensor, mat, indices)
-            return np.reshape(tensor, state_size)
-        # Return evolved density matrix
-        tensor = np.reshape(state, 2 * state_dims)
-        indices = [len(state_dims) - 1 - qubit for qubit in qargs]
-        right_shift = len(state_dims)
-        # Left multiply by operator
-        tensor = self._einsum_matmul(tensor, mat, indices)
-        # Right multiply by adjoint operator
-        # We implement the transpose by doing left multiplication instead of right
-        # in the _einsum_matmul function
-        tensor = self._einsum_matmul(
-            tensor, np.conj(mat), indices, shift=right_shift)
-        return np.reshape(tensor, [state_size, state_size])
 
     def _format_state(self, state):
         """Format input state so it is statevector or density matrix"""

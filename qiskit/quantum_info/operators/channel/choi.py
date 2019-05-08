@@ -285,33 +285,6 @@ class Choi(QuantumChannel):
             raise QiskitError("other is not a number")
         return Choi(other * self._data, self._input_dims, self._output_dims)
 
-    def _evolve(self, state, qargs=None):
-        """Evolve a quantum state by the QuantumChannel.
-
-        Args:
-            state (QuantumState): The input statevector or density matrix.
-            qargs (list): a list of QuantumState subsystem positions to apply
-                           the operator on.
-
-        Returns:
-            DensityMatrix: the output quantum state as a density matrix.
-
-        Raises:
-            QiskitError: if the operator dimension does not match the
-            specified QuantumState subsystem dimensions.
-        """
-        # If subsystem evolution we use the SuperOp representation
-        if qargs is not None:
-            return SuperOp(self)._evolve(state, qargs)
-        # Otherwise we compute full evolution directly
-        state = self._format_state(state, density_matrix=True)
-        if state.shape[0] != self._input_dim:
-            raise QiskitError(
-                "QuantumChannel input dimension is not equal to state dimension."
-            )
-        return np.einsum('AB,AiBj->ij', state,
-                         np.reshape(self._data, self._bipartite_shape))
-
     def _tensor_product(self, other, reverse=False):
         """Return the tensor product channel.
 

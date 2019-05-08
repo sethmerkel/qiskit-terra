@@ -327,47 +327,6 @@ class Stinespring(QuantumChannel):
         return Stinespring((stine_l, stine_r), self.input_dims(),
                            self.output_dims())
 
-    def _evolve(self, state, qargs=None):
-        """Evolve a quantum state by the QuantumChannel.
-
-        Args:
-            state (QuantumState): The input statevector or density matrix.
-            qargs (list): a list of QuantumState subsystem positions to apply
-                           the operator on.
-
-        Returns:
-            QuantumState: the output quantum state.
-
-        Raises:
-            QiskitError: if the operator dimension does not match the
-            specified QuantumState subsystem dimensions.
-        """
-        # If subsystem evolution we use the SuperOp representation
-        if qargs is not None:
-            return SuperOp(self)._evolve(state, qargs)
-
-        # Otherwise we compute full evolution directly
-        state = self._format_state(state)
-        if state.shape[0] != self._input_dim:
-            raise QiskitError(
-                "QuantumChannel input dimension is not equal to state dimension."
-            )
-        if state.ndim == 1 and self._data[1] is None and \
-           self._data[0].shape[0] // self._output_dim == 1:
-            # If the shape of the stinespring operator is equal to the output_dim
-            # evolution of a state vector psi -> stine.psi
-            return np.dot(self._data[0], state)
-        # Otherwise we always return a density matrix
-        state = self._format_state(state, density_matrix=True)
-        stine_l, stine_r = self._data
-        if stine_r is None:
-            stine_r = stine_l
-        din, dout = self.dim
-        dtr = stine_l.shape[0] // dout
-        shape = (dout, dtr, din)
-        return np.einsum('iAB,BC,jAC->ij', np.reshape(stine_l, shape), state,
-                         np.reshape(np.conjugate(stine_r), shape))
-
     def _tensor_product(self, other, reverse=False):
         """Return the tensor product channel.
 

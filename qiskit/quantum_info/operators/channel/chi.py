@@ -269,19 +269,6 @@ class Chi(QuantumChannel):
             raise QiskitError("other is not a number")
         return Chi(other * self._data, self._input_dims, self._output_dims)
 
-    def _evolve(self, state, qargs=None):
-        """Evolve a quantum state by the QuantumChannel.
-
-        Args:
-            state (QuantumState): The input statevector or density matrix.
-            qargs (list): a list of QuantumState subsystem positions to apply
-                           the operator on.
-
-        Returns:
-            DensityMatrix: the output quantum state as a density matrix.
-        """
-        return Choi(self)._evolve(state, qargs)
-
     def _tensor_product(self, other, reverse=False):
         """Return the tensor product channel.
 

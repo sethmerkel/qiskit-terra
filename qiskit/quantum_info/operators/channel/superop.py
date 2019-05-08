@@ -282,37 +282,6 @@ class SuperOp(QuantumChannel):
         return SuperOp(other * self._data, self.input_dims(),
                        self.output_dims())
 
-    def _evolve(self, state, qargs=None):
-        """Evolve a quantum state by the QuantumChannel.
-
-        Args:
-            state (QuantumState): The input statevector or density matrix.
-            qargs (list): a list of QuantumState subsystem positions to apply
-                           the operator on.
-
-        Returns:
-            DensityMatrix: the output quantum state as a density matrix.
-
-        Raises:
-            QiskitError: if the operator dimension does not match the
-            specified QuantumState subsystem dimensions.
-        """
-        state = self._format_state(state, density_matrix=True)
-        if qargs is None:
-            if state.shape[0] != self._input_dim:
-                raise QiskitError(
-                    "QuantumChannel input dimension is not equal to state dimension."
-                )
-            shape_in = self._input_dim * self._input_dim
-            shape_out = (self._output_dim, self._output_dim)
-            # Return evolved density matrix
-            return np.reshape(
-                np.dot(self._data, np.reshape(state, shape_in, order='F')),
-                shape_out,
-                order='F')
-        # Subsystem evolution
-        return self._evolve_subsystem(state, qargs)
-
     def _compose_subsystem(self, other, qargs, front=False):
         """Return the composition channel."""
         # Compute tensor contraction indices from qargs
@@ -344,38 +313,6 @@ class SuperOp(QuantumChannel):
             self._einsum_matmul(tensor, mat, indices, shift, right_mul),
             final_shape)
         return SuperOp(data, input_dims, output_dims)
-
-    def _evolve_subsystem(self, state, qargs):
-        """Evolve a quantum state by the operator.
-
-        Args:
-            state (QuantumState): The input statevector or density matrix.
-            qargs (list): a list of QuantumState subsystem positions to apply
-                           the operator on.
-
-        Returns:
-            QuantumState: the output quantum state.
-
-        Raises:
-            QiskitError: if the operator dimension does not match the
-            specified QuantumState subsystem dimensions.
-        """
-        mat = np.reshape(self.data, self._shape)
-        # Hack to assume state is a N-qubit state until a proper class for states
-        # is in place
-        state_size = len(state)
-        state_dims = self._automatic_dims(None, state_size)
-        if self.input_dims() != len(qargs) * (2, ):
-            raise QiskitError(
-                "Channel input dimensions are not compatible with state subsystem dimensions."
-            )
-        # Return evolved density matrix
-        tensor = np.reshape(state, 2 * state_dims)
-        num_inidices = len(state_dims)
-        indices = [num_inidices - 1 - qubit for qubit in qargs
-                   ] + [2 * num_inidices - 1 - qubit for qubit in qargs]
-        tensor = self._einsum_matmul(tensor, mat, indices)
-        return np.reshape(tensor, [state_size, state_size])
 
     def _tensor_product(self, other, reverse=False):
         """Return the tensor product channel.
