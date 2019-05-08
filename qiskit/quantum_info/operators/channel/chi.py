@@ -92,7 +92,7 @@ class Chi(QuantumChannel):
             if isinstance(data, (QuantumCircuit, Instruction)):
                 # If the input is a Terra QuantumCircuit or Instruction we
                 # convert it to a SuperOp
-                data = SuperOp._instruction_to_superop(data)
+                data = SuperOp._init_instruction(data)
             else:
                 # We use the QuantumChannel init transform to intialize
                 # other objects into a QuantumChannel or Operator object.

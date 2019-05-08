@@ -82,7 +82,7 @@ class SuperOp(QuantumChannel):
                 # register components. The instructions can be gates, reset,
                 # or kraus instructions. Any conditional gates or measure
                 # will cause an exception to be raised.
-                data = self._instruction_to_superop(data)
+                data = self._init_instruction(data)
             else:
                 # We use the QuantumChannel init transform to intialize
                 # other objects into a QuantumChannel or Operator object.
@@ -413,7 +413,7 @@ class SuperOp(QuantumChannel):
         return SuperOp(data, input_dims, output_dims)
 
     @classmethod
-    def _instruction_to_superop(cls, instruction):
+    def _init_instruction(cls, instruction):
         """Convert a QuantumCircuit or Instruction to a SuperOp."""
         # Convert circuit to an instruction
         if isinstance(instruction, QuantumCircuit):
@@ -424,49 +424,54 @@ class SuperOp(QuantumChannel):
         op._append_instruction(instruction)
         return op
 
+    @classmethod
+    def _instruction_to_superop(cls, obj):
+        """Return superop for instruction if defined or None otherwise."""
+        if not isinstance(obj, Instruction):
+            raise QiskitError('Input is not an instruction.')
+        chan = None
+        if obj.name == 'reset':
+            # For superoperator evolution we can simulate a reset as
+            # a non-unitary supeorperator matrix
+            chan = SuperOp(
+                np.array([[1, 0, 0, 1], [0, 0, 0, 0], [0, 0, 0, 0],
+                          [0, 0, 0, 0]]))
+        if obj.name == 'kraus':
+            kraus = obj.params
+            dim = len(kraus[0])
+            chan = SuperOp(_to_superop('Kraus', (kraus, None), dim, dim))
+        elif hasattr(obj, 'to_matrix'):
+            # If instruction is a gate first we see if it has a
+            # `to_matrix` definition and if so use that.
+            try:
+                kraus = [obj.to_matrix()]
+                dim = len(kraus[0])
+                chan = SuperOp(
+                    _to_superop('Kraus', (kraus, None), dim, dim))
+            except QiskitError:
+                pass
+        return chan
+
     def _append_instruction(self, obj, qargs=None):
         """Update the current Operator by apply an instruction."""
-        if isinstance(obj, Instruction):
-            chan = None
-            if obj.name == 'reset':
-                # For superoperator evolution we can simulate a reset as
-                # a non-unitary supeorperator matrix
-                chan = SuperOp(
-                    np.array([[1, 0, 0, 1], [0, 0, 0, 0], [0, 0, 0, 0],
-                              [0, 0, 0, 0]]))
-            if obj.name == 'kraus':
-                kraus = obj.params
-                dim = len(kraus[0])
-                chan = SuperOp(_to_superop('Kraus', (kraus, None), dim, dim))
-            elif hasattr(obj, 'to_matrix'):
-                # If instruction is a gate first we see if it has a
-                # `to_matrix` definition and if so use that.
-                try:
-                    kraus = [obj.to_matrix()]
-                    dim = len(kraus[0])
-                    chan = SuperOp(
-                        _to_superop('Kraus', (kraus, None), dim, dim))
-                except QiskitError:
-                    pass
-            if chan is not None:
-                # Perform the composition and inplace update the current state
-                # of the operator
-                op = self.compose(chan, qargs=qargs)
-                self._data = op.data
-            else:
-                # If the instruction doesn't have a matrix defined we use its
-                # circuit decomposition definition if it exists, otherwise we
-                # cannot compose this gate and raise an error.
-                if obj.definition is None:
-                    raise QiskitError('Cannot apply Instruction: {}'.format(
-                        obj.name))
-                for instr, qregs, cregs in obj.definition:
-                    if cregs:
-                        raise QiskitError(
-                            'Cannot apply instruction with classical registers: {}'
-                            .format(instr.name))
-                    # Get the integer position of the flat register
-                    new_qargs = [tup[1] for tup in qregs]
-                    self._append_instruction(instr, qargs=new_qargs)
+        chan = self._instruction_to_superop(obj)
+        if chan is not None:
+            # Perform the composition and inplace update the current state
+            # of the operator
+            op = self.compose(chan, qargs=qargs)
+            self._data = op.data
         else:
-            raise QiskitError('Input is not an instruction.')
+            # If the instruction doesn't have a matrix defined we use its
+            # circuit decomposition definition if it exists, otherwise we
+            # cannot compose this gate and raise an error.
+            if obj.definition is None:
+                raise QiskitError('Cannot apply Instruction: {}'.format(
+                    obj.name))
+            for instr, qregs, cregs in obj.definition:
+                if cregs:
+                    raise QiskitError(
+                        'Cannot apply instruction with classical registers: {}'
+                        .format(instr.name))
+                # Get the integer position of the flat register
+                new_qargs = [tup[1] for tup in qregs]
+                self._append_instruction(instr, qargs=new_qargs)
