@@ -39,6 +39,15 @@ class BaseOperator(ABC):
         self._input_dim = np.product(input_dims)
         self._output_dim = np.product(output_dims)
 
+    def __call__(self, qargs=None):
+        """Return a tuple of the current operator and qargs."""
+        if qargs is not None and len(qargs) != len(self._input_dims):
+            raise QiskitError(
+                "Incorrect number of qargs for number of input "
+                "dimensions: {} != {}".format(len(qargs), len(self._input_dims))
+            )
+        return (self, qargs)
+
     def __eq__(self, other):
         if (isinstance(other, self.__class__)
                 and self.input_dims() == other.input_dims()
@@ -363,6 +372,9 @@ class BaseOperator(ABC):
 
     # Overloads
     def __matmul__(self, other):
+        # Check for subsystem case return by __call__ method
+        if isinstance(other, tuple) and len(other) == 2:
+            return self.compose(other[0], qargs=other[1])
         return self.compose(other)
 
     def __pow__(self, n):
