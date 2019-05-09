@@ -18,7 +18,7 @@ from qiskit.quantum_info.operators.pauli import Pauli
 
 
 class Clifford(BaseOperator):
-    """Clifford table operator class"""
+    """Clifford table operator class????"""
 
     def __init__(self, data):
         """Initialize an operator object."""
