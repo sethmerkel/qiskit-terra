@@ -14,7 +14,6 @@ from qiskit.circuit.quantumcircuit import QuantumCircuit
 from qiskit.circuit.instruction import Instruction
 from qiskit.qiskiterror import QiskitError
 from qiskit.quantum_info.operators.base_operator import BaseOperator
-from qiskit.quantum_info.operators.operator import Operator
 from qiskit.quantum_info.operators.pauli import Pauli
 
 
@@ -127,10 +126,10 @@ class Clifford(BaseOperator):
             # TODO
             if front:
                 # Composition A(B(input))
-                data = None # TODO: update data
+                data = None  # TODO: update data
             else:
                 # Composition B(A(input))
-                data = None # TODO: update data
+                data = None  # TODO: update data
             return Clifford(data)
         # Compose with other on subsystem
         return self._compose_subsystem(other, qargs, front)
@@ -347,17 +346,38 @@ class Clifford(BaseOperator):
         op._append_instruction(instruction)
         return op
 
+    def _index(self):
+        """Returns a unique integer index for the Clifford."""
+        mat = self.table
+        mat = mat.reshape(mat.size)
+        ret = int(0)
+        for bit in mat:
+            ret = (ret << 1) | int(bit)
+        mat = self.phases
+        mat = mat.reshape(mat.size)
+        for bit in mat:
+            ret = (ret << 1) | int(bit)
+        return ret
+
     def _append_instruction(self, obj, qargs=None):
         """Update the current Clifford by apply an instruction."""
         # Dictionaries for returning the correct apply function for
         # 1 and 2 qubit clifford table updates.
         cliffords_1q = {
-            'id': self._append_id, 'x': self._append_x, 'y': self._append_y,
-            'z': self._append_z, 'h': self._append_h, 's': self._append_s,
-            'sdg': self._append_sdg, 'w': self._append_w, 'v': self._append_v
+            'id': self._append_id,
+            'x': self._append_x,
+            'y': self._append_y,
+            'z': self._append_z,
+            'h': self._append_h,
+            's': self._append_s,
+            'sdg': self._append_sdg,
+            'w': self._append_w,
+            'v': self._append_v
         }
         cliffords_2q = {
-            'cz': self._append_cz, 'cx': self._append_cx, 'swap': self._append_swap
+            'cz': self._append_cz,
+            'cx': self._append_cx,
+            'swap': self._append_swap
         }
         if not isinstance(obj, Instruction):
             raise QiskitError('Input is not an instruction.')
@@ -380,12 +400,13 @@ class Clifford(BaseOperator):
             # circuit decomposition definition if it exists, otherwise we
             # cannot compose this gate and raise an error.
             if obj.definition is None:
-                raise QiskitError('Invalid Clifford instruction: {}'.format(obj.name))
+                raise QiskitError('Invalid Clifford instruction: {}'.format(
+                    obj.name))
             for instr, qregs, cregs in obj.definition:
                 if cregs:
                     raise QiskitError(
-                        'Cannot apply instruction with classical registers: {}'.format(
-                            instr.name))
+                        'Cannot apply instruction with classical registers: {}'
+                        .format(instr.name))
                 # Get the integer position of the flat register
                 new_qargs = [tup[1] for tup in qregs]
                 self._append_instruction(instr, qargs=new_qargs)
@@ -427,7 +448,7 @@ class Clifford(BaseOperator):
         zx_and = np.logical_and(self.table[:, ix], self.table[:, iz])
         self.phases = np.logical_xor(self.phases, zx_and)
         self.table[:, iz] = np.logical_xor(self.table[:, ix],
-                                              self.table[:, iz])
+                                           self.table[:, iz])
 
     def _append_sdg(self, qubit):
         """Apply an adjoint phase "sdg" gate to qubit"""
@@ -457,9 +478,9 @@ class Clifford(BaseOperator):
         self.phases ^= tmp
         # Update stabilizers
         self.table[:, ix_t] = np.logical_xor(self.table[:, ix_t],
-                                                self.table[:, ix_c])
+                                             self.table[:, ix_c])
         self.table[:, iz_c] = np.logical_xor(self.table[:, iz_t],
-                                                self.table[:, iz_c])
+                                             self.table[:, iz_c])
 
     def _append_cz(self, qubit_ctrl, qubit_trgt):
         """Apply a Controlled-z "cx" gate"""
