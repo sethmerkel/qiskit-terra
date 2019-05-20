@@ -16,6 +16,7 @@
 
 from .operators.operator import Operator
 from .operators.pauli import Pauli, pauli_group
+from .operators.clifford import Clifford
 from .operators.channel import Choi, SuperOp, Kraus, Stinespring, Chi, PTM
 from .operators.measures import process_fidelity
 from .states.states import basis_state, projector, purity

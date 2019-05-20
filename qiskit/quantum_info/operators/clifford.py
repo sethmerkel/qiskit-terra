@@ -206,35 +206,36 @@ class Clifford(BaseOperator):
     def stabilizer(self, qubit):
         """Return the qubit stabilizer as a Pauli object"""
         nq = self.num_qubits
-        z = self.table[nq + qubit, 0:nq]
-        x = self.table[nq + qubit, nq:2 * nq]
+        z = self.table[qubit, 0:nq]
+        x = self.table[qubit, nq:2 * nq]
         return Pauli(z=z, x=x)
 
-    def set_stabilizer(self, qubit, value):
+    def set_stabilizer(self, qubit, value,phase=0):
         """Update the qubit stabilizer row from a Pauli object"""
-        index = self.num_qubits + qubit
         if isinstance(value, Pauli):
             # Update from Pauli object
-            self.table[index] = np.block([value.z, value.x])
+            self.table[qubit] = np.block([value.z, value.x,[phase]])
         else:
             # Update table as Numpy array
-            self.table[index] = value
+            self.table[qubit] = value
 
     def destabilizer(self, row):
         """Return the destabilizer as a Pauli object"""
         nq = self.num_qubits
-        z = self.table[row, 0:nq]
-        x = self.table[row, nq:2 * nq]
+        z = self.table[nq +row, 0:nq]
+        x = self.table[nq +row, nq:2 * nq]
         return Pauli(z=z, x=x)
 
-    def set_destabilizer(self, qubit, value):
+    def set_destabilizer(self, qubit, value,phase=0):
         """Update the qubit destabilizer row from a Pauli object"""
+        nq = self.num_qubits
         if isinstance(value, Pauli):
             # Update from Pauli object
-            self.table[qubit] = np.block([value.z, value.x])
+            self.table[nq+qubit] = np.block([value.z, value.x,[phase]])
         else:
             # Update table as Numpy array
-            self.table[qubit] = value
+            self.table[nq+qubit] = value
+        
 
     # ---------------------------------------------------------------------
     # JSON / Dict conversion

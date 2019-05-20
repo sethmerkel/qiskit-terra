@@ -10,3 +10,5 @@
 from .operator import Operator
 from .pauli import Pauli, pauli_group
 from .channel import Choi, SuperOp, Kraus, Stinespring, Chi, PTM
+from .clifford import Clifford
+from .pauliop import PauliOp,pauliop_group
