@@ -50,7 +50,7 @@ class PauliOp(BaseOperator):
             # Finally we check if the input is a stabilzer [z , x] or unitary matrix
             data = np.array(data)
             if data.ndim == 1  :
-                if 2*len(data)//2 != len(data):
+                if 2*(len(data)//2) != len(data):
                     raise QiskitError("Invalid shape for input Pauli stabilizer.")
                 pvector = np.array(data, dtype=np.bool)     
             elif data.ndim == 2  :

@@ -14,9 +14,20 @@ from qiskit.circuit.quantumcircuit import QuantumCircuit
 from qiskit.circuit.instruction import Instruction
 from qiskit.qiskiterror import QiskitError
 from qiskit.quantum_info.operators.base_operator import BaseOperator
-from qiskit.quantum_info.operators.pauli import Pauli
+from qiskit.quantum_info.operators.pauliop import PauliOp
 
-
+def _matmul_andxor(m1,m2):
+    """Boolean matrix mult with xor instead of or."""
+    return (np.dot(m1.astype(int),m2.astype(int))%2).astype(bool) 
+def _symplectic_matrix(nq):
+    return np.block([[np.zeros([nq,nq],dtype=bool),np.eye(nq,dtype=bool)],[np.eye(nq,dtype=bool),np.zeros([nq,nq],dtype=bool)]])
+def _symplectic_inner(m1,m2):
+    """Symplectic inner product, not being super careful with error handling"""
+    nq = len(m1)//2
+    return _matmul_andxor(np.transpose(m1),_matmul_andxor(_symplectic_matrix(nq),m2))
+        
+    
+    
 class Clifford(BaseOperator):
     """Clifford table operator class????"""
 
@@ -41,7 +52,7 @@ class Clifford(BaseOperator):
                 raise QiskitError("Invalid shape for input Clifford table.")
             if data.shape[0] == data.shape[1]:
                 table = data
-                table.resize((data.shape[0], data.shape[1] + 1))
+                table = np.block([table,np.zeros([data.shape[0],1],bool)])
             elif data.shape[1] == data.shape[0] + 1:
                 table = data
             else:
@@ -59,8 +70,8 @@ class Clifford(BaseOperator):
 
     def is_unitary(self, atol=None, rtol=None):
         """Return True if operator is a unitary matrix."""
-        # TODO: Check if a Clifford table is always valid
-        return True
+        nq =self.num_qubits
+        return np.array_equal(_symplectic_inner(self.table,self.table), _symplectic_matrix(nq))
 
     def to_operator(self):
         """Convert operator to matrix operator class"""
@@ -74,8 +85,12 @@ class Clifford(BaseOperator):
 
     def conjugate(self):
         """Return the conjugate of the operator."""
-        # TODO
-        pass
+        nq = self.num_qubits
+        tempdata = np.zeros(self.data.shape,dtype=bool)
+        tempdata[:,0:2*nq] = self.data[:,0:2*nq]
+        for trow,row in zip (tempdata,self.data):
+            trow[-1] = row[-1]^_matmul_andxor(row[0:nq],row[nq:2*nq])
+        return Clifford(tempdata)
 
     def transpose(self):
         """Return the transpose of the operator."""
@@ -191,7 +206,7 @@ class Clifford(BaseOperator):
     @table.setter
     def table(self, value):
         """Set Clifford table."""
-        self._data[:, 0:-1] = value
+        self._data[:, 0:-1] = value.astype(bool)
 
     @property
     def phases(self):
@@ -201,40 +216,35 @@ class Clifford(BaseOperator):
     @phases.setter
     def phases(self, value):
         """Set Clifford phases."""
-        self._data[:, -1] = value
+        self._data[:, -1] = value.astype(bool)
 
     def stabilizer(self, qubit):
         """Return the qubit stabilizer as a Pauli object"""
-        nq = self.num_qubits
-        z = self.table[qubit, 0:nq]
-        x = self.table[qubit, nq:2 * nq]
-        return Pauli(z=z, x=x)
+        return PauliOp(self.table[qubit, :])
 
-    def set_stabilizer(self, qubit, value,phase=0):
+    def set_stabilizer(self, qubit, value,phase=False):
         """Update the qubit stabilizer row from a Pauli object"""
-        if isinstance(value, Pauli):
+        if isinstance(value, PauliOp):
             # Update from Pauli object
-            self.table[qubit] = np.block([value.z, value.x,[phase]])
+            self.data[qubit] = np.block([value.data,np.array([phase])]).astype(bool)
         else:
             # Update table as Numpy array
-            self.table[qubit] = value
+            self.data[qubit] = value.astype(bool)
 
-    def destabilizer(self, row):
+    def destabilizer(self, qubit):
         """Return the destabilizer as a Pauli object"""
         nq = self.num_qubits
-        z = self.table[nq +row, 0:nq]
-        x = self.table[nq +row, nq:2 * nq]
-        return Pauli(z=z, x=x)
+        return PauliOp(self.table[nq+qubit, :])
 
-    def set_destabilizer(self, qubit, value,phase=0):
+    def set_destabilizer(self, qubit, value,phase=False):
         """Update the qubit destabilizer row from a Pauli object"""
         nq = self.num_qubits
-        if isinstance(value, Pauli):
+        if isinstance(value, PauliOp):
             # Update from Pauli object
-            self.table[nq+qubit] = np.block([value.z, value.x,[phase]])
+            self.data[nq+qubit] = np.block([value.data,np.array([phase])]).astype(bool)
         else:
             # Update table as Numpy array
-            self.table[nq+qubit] = value
+            self.data[nq+qubit] = value.astype(bool)
         
 
     # ---------------------------------------------------------------------
@@ -244,15 +254,16 @@ class Clifford(BaseOperator):
     def as_dict(self):
         """Return dictionary (JSON) represenation of Clifford object"""
         # Modify later if we want to include i and -i.
+        nq = self.num_qubits
         stabilizers = []
-        for qubit in range(self.num_qubits):
+        for qubit in reversed(range(nq)):
             label = self.stabilizer(qubit).to_label()
-            phase = self.phases[self.num_qubits + qubit]
+            phase = self.phases[qubit]
             stabilizers.append(('-' if phase else '') + label)
         destabilizers = []
-        for qubit in range(self.num_qubits):
+        for qubit in reversed(range(nq)):
             label = self.destabilizer(qubit).to_label()
-            phase = self.phases[qubit]
+            phase = self.phases[nq+qubit]
             destabilizers.append(('-' if phase else '') + label)
         return {"stabilizers": stabilizers, "destabilizers": destabilizers}
 
@@ -272,34 +283,31 @@ class Clifford(BaseOperator):
             raise ValueError(
                 "Invalid Clifford dict: length of stabilizers and "
                 "destabilizers do not match.")
-        num_qubits = len(stabilizers)
-
+        nq = len(stabilizers)
         # Helper function
         def get_row(label):
             """Return the Pauli object and phase for stabilizer"""
             if label[0] in ['I', 'X', 'Y', 'Z']:
-                pauli = Pauli.from_label(label)
-                phase = 0
+                pauli = PauliOp(label)
+                phase = False
             elif label[0] == '+':
-                pauli = Pauli.from_label(label[1:])
-                phase = 0
+                pauli = PauliOp(label[1:])
+                phase = False
             elif label[0] == '-':
-                pauli = Pauli.from_label(label[1:])
-                phase = 1
+                pauli = PauliOp(label[1:])
+                phase = True
             return pauli, phase
 
         # Generate identity Clifford on number of qubits
-        clifford = cls._init_identity(num_qubits)
+        clifford = cls._init_identity(nq)
         # Update stabilizers
         for qubit, label in enumerate(stabilizers):
             pauli, phase = get_row(label)
-            clifford.set_stabilizer(qubit, pauli)
-            clifford.phases[num_qubits + qubit] = phase
+            clifford.set_stabilizer(nq-qubit-1, pauli,phase=phase)
         # Update destabilizers
         for qubit, label in enumerate(destabilizers):
             pauli, phase = get_row(label)
-            clifford.set_destabilizer(qubit, pauli)
-            clifford.phases[qubit] = phase
+            clifford.set_destabilizer(nq-qubit-1, pauli,phase=phase)
         return clifford
 
     def _tensor_product(self, other, reverse=False):
@@ -318,8 +326,37 @@ class Clifford(BaseOperator):
         # Convert other to Operator
         if not isinstance(other, Clifford):
             other = Clifford(other)
-        # TODO
-        pass
+        nqs = self.num_qubits
+        nqo = other.num_qubits        
+        zs = np.zeros([nqo,nqs],dtype=bool)
+        zo = np.zeros([nqs,nqo],dtype=bool)
+        if not reverse:
+            tensordata = np.block([[other.data[0:nqo,0:nqo],zs,
+                                    other.data[0:nqo,nqo:2*nqo],zs,
+                                    other.data[0:nqo,-1,None]],
+                                   [zo,self.data[0:nqs,0:nqs],
+                                    zo,self.data[0:nqs,nqs:2*nqs],
+                                    self.data[0:nqs,-1,None]],
+                                   [other.data[nqo:2*nqo,0:nqo],zs,
+                                    other.data[nqo:2*nqo,nqo:2*nqo],zs,
+                                    other.data[nqo:2*nqo,-1,None]],
+                                   [zo,self.data[nqs:2*nqs,0:nqs],
+                                    zo,self.data[nqs:2*nqs,nqs:2*nqs],
+                                    self.data[nqs:2*nqs,-1,None]],])
+        else:
+            tensordata = np.block([[self.data[0:nqs,0:nqs],zo,
+                                    self.data[0:nqs,nqs:2*nqs],zo,
+                                    self.data[0:nqs,-1,None]],
+                                   [zs,other.data[0:nqo,0:nqo],
+                                    zs,other.data[0:nqo,nqo:2*nqo],
+                                    other.data[0:nqo,-1,None]],
+                                   [self.data[nqs:2*nqs,0:nqs],zo,
+                                    self.data[nqs:2*nqs,nqs:2*nqs],zo,
+                                    self.data[nqs:2*nqs,-1,None]],
+                                   [zs,other.data[nqo:2*nqo,0:nqo],
+                                    zs,other.data[nqo:2*nqo,nqo:2*nqo],
+                                    other.data[nqo:2*nqo,-1,None]]])
+        return Clifford(tensordata)
 
     def _compose_subsystem(self, other, qargs, front=False):
         """Return the composition channel."""
@@ -330,13 +367,13 @@ class Clifford(BaseOperator):
     def _init_identity(cls, num_qubits):
         """Initialize and identity Clifford table"""
         # Symplectic table
-        zeros = np.zeros((num_qubits, num_qubits), dtype=np.bool)
-        iden = np.eye(num_qubits, dtype=np.bool)
-        phases = np.zeros((num_qubits, 1), dtype=np.bool)
-        table = np.block([[zeros, iden, phases], [iden, zeros, phases]])
+        iden = np.eye(2*num_qubits, dtype=np.bool)
+        phases = np.zeros((2*num_qubits, 1), dtype=np.bool)
+        table = np.block([iden, phases])
         return Clifford(table)
 
     @classmethod
+    
     def _init_instruction(cls, instruction):
         """Convert a QuantumCircuit or Instruction to a Clifford."""
         # Convert circuit to an instruction
