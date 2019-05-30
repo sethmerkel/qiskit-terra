@@ -126,7 +126,8 @@ class PauliOp(BaseOperator):
         # Full composition of operators
         if qargs is None:
             output=PauliOp(str(self))
-            output.data = np.logical_xor(output.data,other.data)
+            print(output)
+            output._data = np.logical_xor(self._data,other._data)
             return output
         # Compose with other on subsystem
         return self._compose_subsystem(other, qargs, front)
@@ -176,7 +177,7 @@ class PauliOp(BaseOperator):
         """Output the Pauli label."""
         label = ''
         nq = self.num_qubits
-        for z, x in zip(reversed(self._data[:nq]),reversed(self._data[nq:])):
+        for x,z in zip(reversed(self._data[:nq]),reversed(self._data[nq:])):
             if not z and not x:
                 label = ''.join([label, 'I'])
             elif not z and x:
@@ -235,9 +236,9 @@ class PauliOp(BaseOperator):
         pvector = np.zeros(2*nq,dtype=bool)
         for i, char in enumerate(label):
             if char == 'X':
-                pvector[-i -1] = True
-            elif char == 'Z':
                 pvector[-nq -i -1] = True
+            elif char == 'Z':
+                pvector[-i -1] = True
             elif char == 'Y':
                 pvector[-nq -i - 1] = True
                 pvector[-i - 1] = True
@@ -283,12 +284,6 @@ class PauliOp(BaseOperator):
             data = str(other)+str(self)
         return PauliOp(data)
 
-
-    def _compose_subsystem(self, other, qargs, front=False):
-        """Return the composition channel."""
-        # TODO
-        pass
-
     @classmethod
     def _init_identity(cls, num_qubits):
         """Initialize and identity Pauli """
@@ -304,8 +299,8 @@ class PauliOp(BaseOperator):
         nqother = other.num_qubits
         output=PauliOp(str(self))
         for ind, qubit in enumerate(qargs):
-            output.data[-1-qubit] = output.data[-1-qubit]^other.data[-1-qubit]
-            output.data[-nq-1-qubit] = output.data[-nq-1-qubit]^other.data[-nqother-1-qubit]
+            output.data[-1-qubit] = output.data[-1-qubit]^other.data[-1-ind]
+            output.data[-nq-1-qubit] = output.data[-nq-1-qubit]^other.data[-nqother-1-ind]
         return output
 
     
@@ -362,7 +357,7 @@ class PauliOp(BaseOperator):
 
     def _append_x(self, qubit):
         """Apply a Pauli "x" gate to a qubit"""
-        self.data[self.num_qubits+qubit] = not self.data[self.num_qubits+qubit]
+        self.data[qubit] = not self.data[qubit]
         
 
     def _append_y(self, qubit):
@@ -372,7 +367,7 @@ class PauliOp(BaseOperator):
 
     def _append_z(self, qubit):
         """Apply an Pauli "z" gate to qubit"""
-        self.data[qubit] = not self.data[qubit] 
+        self.data[self.num_qubits+qubit] = not self.data[self.num_qubits+qubit] 
         
 
 def pauliop_group(number_of_qubits, case='weight'):
@@ -419,8 +414,8 @@ def pauliop_group(number_of_qubits, case='weight'):
                     elif element == 3:
                         z[j] = True
                 current = []
-                current.extend(z)
                 current.extend(x)
+                current.extend(z)
                 temp_set.append(PauliOp(current))
             return temp_set
         else:
