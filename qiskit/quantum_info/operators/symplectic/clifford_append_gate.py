@@ -156,7 +156,7 @@ def append_h(clifford, qubit):
     """
     x = clifford.table.X[:, qubit]
     z = clifford.table.Z[:, qubit]
-    clifford.table.phase ^= x ^ z
+    clifford.table.phase ^= x & z
     tmp = x.copy()
     x[:] = z
     z[:] = tmp
