@@ -32,17 +32,20 @@ def compose(clifford, gate, qubits):
     return append(ret, gate, qubits)
 
 
-def append(clifford, gate, qubits):
+def append(clifford, gate, qargs=None):
     """Update Clifford inplace by applying a Clifford gate.
 
     Args:
         clifford (Clifford): the Clifford to update.
         gate (Gate or str): the gate or composite gate to apply.
-        qubits (list): The qubits to apply gate to.
+        qargs (list or None): The qubits to apply gate to.
 
     Returns:
         Clifford: the updated Clifford.
     """
+    if qargs is None:
+        qargs = list(range(clifford.n_qubits))
+
     # Basis Clifford Gates
     basis_1q = {
         'i': append_i, 'id': append_i, 'iden': append_i,
@@ -53,6 +56,10 @@ def append(clifford, gate, qubits):
     basis_2q = {
         'cx': append_cx, 'cz': append_cz, 'swap': append_swap
     }
+
+    # Non-clifford gates
+    non_clifford = ['t', 'tdg', 'ccx', 'ccz']
+
     if isinstance(gate, str):
         # Check if gate is a valid Clifford basis gate string
         if gate not in basis_1q and gate not in basis_2q:
@@ -63,14 +70,17 @@ def append(clifford, gate, qubits):
         name = gate.name
 
     # Apply gate if it is a Clifford basis gate
+    if name in non_clifford:
+        raise QiskitError(
+            "Cannot update Clifford with non-Clifford gate {}".format(name))
     if name in basis_1q:
-        if len(qubits) != 1:
+        if len(qargs) != 1:
             raise QiskitError("Invalid qubits for 1-qubit gate.")
-        return basis_1q[name](clifford, qubits[0])
+        return basis_1q[name](clifford, qargs[0])
     if name in basis_2q:
-        if len(qubits) != 2:
+        if len(qargs) != 2:
             raise QiskitError("Invalid qubits for 2-qubit gate.")
-        return basis_2q[name](clifford, qubits[0], qubits[1])
+        return basis_2q[name](clifford, qargs[0], qargs[1])
 
     # If not a Clifford basis gate we try to unroll the gate,
     # raising an exception if unrolling reaches a non-Clifford gate.
@@ -84,7 +94,7 @@ def append(clifford, gate, qubits):
                 'Cannot apply Instruction with classical registers: {}'.format(
                     instr.name))
         # Get the integer position of the flat register
-        new_qubits = [qubits[tup.index] for tup in qregs]
+        new_qubits = [qargs[tup.index] for tup in qregs]
         append(clifford, instr, new_qubits)
     return clifford
 

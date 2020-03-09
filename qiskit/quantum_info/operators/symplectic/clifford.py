@@ -11,9 +11,11 @@ Clifford operator class.
 import numpy as np
 
 from qiskit import QiskitError
+from qiskit.circuit import QuantumCircuit, Instruction
 from qiskit.quantum_info.operators.base_operator import BaseOperator
 from qiskit.quantum_info.operators.scalar_op import ScalarOp
 from qiskit.quantum_info.operators.symplectic.stabilizer_table import StabilizerTable
+from qiskit.quantum_info.operators.symplectic.clifford_utils import append
 
 
 class Clifford(BaseOperator):
@@ -33,6 +35,10 @@ class Clifford(BaseOperator):
                 raise QiskitError("Can only initalize from N-qubit identity ScalarOp.")
             self._table = StabilizerTable(
                 np.eye(2 * len(data._input_dims), dtype=np.bool))
+
+        # Initialize from a QuantumCircuit or Instruction object
+        elif isinstance(data, (QuantumCircuit, Instruction)):
+            self._table = Clifford.from_instruction(data)._table
 
         # Initialize StabilizerTable directly from the data
         else:
@@ -240,3 +246,30 @@ class Clifford(BaseOperator):
         destabilizer = StabilizerTable.from_labels(obj.get('destabilizer'))
         stabilizer = StabilizerTable.from_labels(obj.get('stabilizer'))
         return Clifford(destabilizer + stabilizer)
+
+    @staticmethod
+    def from_instruction(instruction):
+        """Initialize from a QuantumCircuit or Instruction.
+
+        Args:
+            instruction (QuantumCircuit or Instruction): instruction to
+                                                         initialize.
+
+        Returns:
+            Clifford: the Clifford object for the instruction.
+
+        Raises:
+            QiskitError: if the input instruction is non-Clifford or contains
+                         classical register instruction.
+        """
+        if not isinstance(instruction, (QuantumCircuit, Instruction)):
+            raise QiskitError("Input must be a QuantumCircuit or Instruction")
+
+        # Convert circuit to an instruction
+        if isinstance(instruction, QuantumCircuit):
+            instruction = instruction.to_instruction()
+
+        # Initialize an identity Clifford
+        clifford = Clifford(np.eye(2 * instruction.num_qubits))
+        append(clifford, instruction)
+        return clifford
