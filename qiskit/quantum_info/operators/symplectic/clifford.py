@@ -133,16 +133,25 @@ class Clifford(BaseOperator):
         # A valid Clifford is always unitary, so this function is really
         # checking that the underlying Stabilizer table array is a valid
         # Clifford array.
+
+        # TODO: IMPLEMENT ME!
+
         raise NotImplementedError(
             'This method has not been implemented for Clifford operators yet.')
 
     def to_matrix(self):
         """Convert operator to Numpy matrix."""
+
+        # TODO: IMPLEMENT ME!
+
         raise NotImplementedError(
             'This method has not been implemented for Clifford operators yet.')
 
     def to_operator(self):
         """Convert to an Operator object."""
+
+        # TODO: IMPLEMENT ME!
+
         raise NotImplementedError(
             'This method has not been implemented for Clifford operators yet.')
 
@@ -152,11 +161,17 @@ class Clifford(BaseOperator):
 
     def conjugate(self):
         """Return the conjugate of the Clifford."""
+
+        # TODO: IMPLEMENT ME!
+
         raise NotImplementedError(
             'This method has not been implemented for Clifford operators yet.')
 
     def transpose(self):
         """Return the transpose of the Clifford."""
+
+        # TODO: IMPLEMENT ME!
+
         raise NotImplementedError(
             'This method has not been implemented for Clifford operators yet.')
 
@@ -184,6 +199,19 @@ class Clifford(BaseOperator):
             Setting ``front=True`` returns `right` matrix multiplication
             ``A * B`` and is equivalent to the :meth:`dot` method.
         """
+        if qargs is None:
+            qargs = getattr(other, 'qargs', None)
+
+        if not isinstance(other, Clifford):
+            other = Clifford(other)
+
+        # Validate dimensions. Note we don't need to get updated input or
+        # output dimensions from `_get_compose_dims` as the dimensions of the
+        # Clifford object can't be changed by composition
+        self._get_compose_dims(other, qargs, front)
+
+        # TODO: IMPLEMENT ME!
+
         raise NotImplementedError(
             'This method has not been implemented for Clifford operators yet.')
 
@@ -214,6 +242,11 @@ class Clifford(BaseOperator):
         Returns:
             Clifford: the tensor product operator self ⊗ other.
         """
+        if not isinstance(other, Clifford):
+            other = Clifford(other)
+
+        # TODO: IMPLEMENT ME!
+
         raise NotImplementedError(
             'This method has not been implemented for Clifford operators yet.')
 
@@ -226,6 +259,11 @@ class Clifford(BaseOperator):
         Returns:
             Clifford: the tensor product operator other ⊗ self.
         """
+        if not isinstance(other, Clifford):
+            other = Clifford(other)
+
+        # TODO: IMPLEMENT ME!
+
         raise NotImplementedError(
             'This method has not been implemented for Clifford operators yet.')
 
