@@ -273,7 +273,7 @@ def append_cz(clifford, control, target):
     z0 = clifford.table.Z[:, control]
     x1 = clifford.table.X[:, target]
     z1 = clifford.table.Z[:, target]
-    clifford.table.phase ^= x0 ^ ((x1 ^ z0 ^ True) & z1 & x0)
+    clifford.table.phase ^= (z1 ^ z0 ^ True) & x1 & x0
     z1 ^= x0
     z0 ^= x1
     return clifford
