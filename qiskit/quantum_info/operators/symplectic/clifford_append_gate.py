@@ -5,7 +5,7 @@
 # This source code is licensed under the Apache License, Version 2.0 found in
 # the LICENSE.txt file in the root directory of this source tree.
 """
-Clifford class gate update utility functions
+Clifford class gate update utility function
 """
 # pylint: disable=invalid-name
 
@@ -16,23 +16,7 @@ from qiskit import QiskitError
 # Apply Clifford Gates
 # ---------------------------------------------------------------------
 
-def compose(clifford, gate, qubits):
-    """Return Clifford obtained by applying gate.
-
-    Args:
-        clifford (Clifford): the initial Clifford.
-        gate (Gate or str): the gate or composite gate to apply.
-        qubits (list): The qubits to apply gate to.
-
-    Returns:
-        Clifford: the output Clifford.
-    """
-    # Make a copy of the input Clifford, then udpate copy inplace
-    ret = clifford.copy()
-    return append(ret, gate, qubits)
-
-
-def append(clifford, gate, qargs=None):
+def append_gate(clifford, gate, qargs=None):
     """Update Clifford inplace by applying a Clifford gate.
 
     Args:
@@ -95,7 +79,7 @@ def append(clifford, gate, qargs=None):
                     instr.name))
         # Get the integer position of the flat register
         new_qubits = [qargs[tup.index] for tup in qregs]
-        append(clifford, instr, new_qubits)
+        append_gate(clifford, instr, new_qubits)
     return clifford
 
 
