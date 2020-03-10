@@ -18,6 +18,10 @@ from qiskit.quantum_info.operators.symplectic.stabilizer_table import Stabilizer
 from qiskit.quantum_info.operators.symplectic.clifford_utils import append
 
 
+def _symeye(n):
+    return (np.block([[np.zeros([n,n]),np.eye(n)],
+                              [np.eye(n),np.zeros([n,n])]])).astype(bool)
+
 class Clifford(BaseOperator):
     """Clifford table operator class"""
 
@@ -134,10 +138,10 @@ class Clifford(BaseOperator):
         # checking that the underlying Stabilizer table array is a valid
         # Clifford array.
 
-        # TODO: IMPLEMENT ME!
-
-        raise NotImplementedError(
-            'This method has not been implemented for Clifford operators yet.')
+        nq =self.n_qubits
+        seye = _symeye(n)
+        cliffdata = self.table.array
+        return np.array_equal((np.dot(cliffdata,np.dot(seye,cliffdata))%2).astype(bool), seye)
 
     def to_matrix(self):
         """Convert operator to Numpy matrix."""
@@ -161,11 +165,11 @@ class Clifford(BaseOperator):
 
     def conjugate(self):
         """Return the conjugate of the Clifford."""
-
-        # TODO: IMPLEMENT ME!
-
-        raise NotImplementedError(
-            'This method has not been implemented for Clifford operators yet.')
+        x = self.table.X
+        z = self.table.Z
+        ret = self.copy()
+        ret.table.phase = self.table.phase ^ (np.sum(x & z, axis=1) % 2)
+        return ret
 
     def transpose(self):
         """Return the transpose of the Clifford."""
