@@ -15,7 +15,7 @@ from qiskit.circuit import QuantumCircuit, Instruction
 from qiskit.quantum_info.operators.base_operator import BaseOperator
 from qiskit.quantum_info.operators.scalar_op import ScalarOp
 from qiskit.quantum_info.operators.symplectic.stabilizer_table import StabilizerTable
-from qiskit.quantum_info.operators.symplectic.clifford_utils import append
+from qiskit.quantum_info.operators.symplectic.clifford_append_gate import append_gate
 
 
 def _symeye(n):
@@ -313,5 +313,5 @@ class Clifford(BaseOperator):
 
         # Initialize an identity Clifford
         clifford = Clifford(np.eye(2 * instruction.num_qubits))
-        append(clifford, instruction)
+        append_gate(clifford, instruction)
         return clifford
