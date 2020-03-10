@@ -201,6 +201,8 @@ def append_sdg(clifford, qubit):
 def append_v(clifford, qubit):
     """Apply a V gate to a Clifford.
 
+    This is equivalent to an Sdg gate followed by a H gate.
+
     Args:
         clifford (Clifford): a Clifford.
         qubit (int): gate qubit index.
@@ -210,7 +212,7 @@ def append_v(clifford, qubit):
     """
     x = clifford.table.X[:, qubit]
     z = clifford.table.Z[:, qubit]
-    clifford.table.phase ^= ~x & z
+    clifford.table.phase ^= False
     tmp = x.copy()
     x ^= z
     z[:] = tmp
@@ -220,6 +222,8 @@ def append_v(clifford, qubit):
 def append_w(clifford, qubit):
     """Apply a W gate to a Clifford.
 
+    This is equivalent to two V gates.
+
     Args:
         clifford (Clifford): a Clifford.
         qubit (int): gate qubit index.
@@ -229,11 +233,10 @@ def append_w(clifford, qubit):
     """
     x = clifford.table.X[:, qubit]
     z = clifford.table.Z[:, qubit]
-    clifford.table.phase ^= x | z
-    x ^= z
-    tmp = x.copy()
-    x[:] = z
-    z[:] = tmp
+    clifford.table.phase ^= False
+    tmp = z.copy()
+    z ^= x
+    x[:] = tmp
     return clifford
 
 
